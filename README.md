@@ -8,6 +8,7 @@ Each match has 5 rounds. In each round, both players answer the same multiple-ch
 - The fastest correct answer gets **+3 bonus** points.
 - An answer that takes more than **30 seconds** gets 0 points.
 - On a `"double"` power-up question, correct answers get double points.
+- On a `"golden"` question, a correct answer is worth **50 points** instead of 10 (the speed bonus still applies).
 
 A leaderboard, ranked by wins and then by points, is saved to `leaderboard.json`.
 
@@ -55,4 +56,25 @@ Add an entry to `questions.json`:
 }
 ```
 
-Each question needs exactly 4 options, and `correct` must be a letter from A to D. `power_up` is optional.
+Each question needs exactly 4 options, and `correct` must be a letter from A to D. `power_up` is optional and can be `"double"` or `"golden"`.
+
+### Golden question
+
+Set `"power_up": "golden"` to make a question golden:
+
+```json
+{
+  "text": "Question text",
+  "options": ["A", "B", "C", "D"],
+  "correct": "B",
+  "power_up": "golden"
+}
+```
+
+If the bank has at least one golden question, every match gets **exactly one** of them, at a random round. The points come from `GOLDEN_POINTS` in `engine.py`. To make golden questions appear only by chance, call `bank.pick(n, golden_guaranteed=False)`.
+
+## Error handling
+
+- **`questions.json`**: a missing file, invalid JSON, a wrong structure, or too few valid questions stops the game with a clear message. A single invalid question (missing keys, wrong number of options, unknown `power_up`...) is skipped and written to `quiz_game.log`, and the game warns you.
+- **`leaderboard.json`**: if the file is corrupt, it is renamed to `leaderboard.json.corrupt` and the leaderboard starts fresh. Saves are atomic (written to a temp file, then swapped in), so a crash cannot leave a half-written file. If saving fails, the game continues and shows a warning.
+- **Game loop**: unexpected errors are logged with a traceback and shown as a short message instead of being silently swallowed. Ctrl+C and Ctrl+D exit cleanly.

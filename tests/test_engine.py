@@ -1,6 +1,6 @@
 import pytest
 
-from engine import Match, Question, ROUNDS, POINTS, SPEED_BONUS, TIME_LIMIT
+from engine import Match, Question, ROUNDS, POINTS, SPEED_BONUS, TIME_LIMIT, GOLDEN_POINTS
 
 
 def make_questions(power_up: str | None = None) -> list[Question]:
@@ -164,3 +164,95 @@ def test_a_question_needs_exactly_four_options():
 def test_the_correct_answer_must_be_a_b_c_or_d():
     with pytest.raises(ValueError):
         Question("۲+۲؟", ["4", "5", "6", "7"], "E")
+
+
+# ---------- سؤال طلایی ----------
+
+def test_golden_question_is_worth_much_more_than_a_normal_one():
+    assert GOLDEN_POINTS >= 5 * POINTS
+
+
+def test_golden_correct_answer_gives_golden_points():
+    m = make_match("golden")
+    m.start_round()
+    m.submit("علی", "A", 3.0)     # سریع‌تر → بونوس سرعت هم می‌گیرد
+    m.submit("رضا", "A", 9.0)
+    m.resolve_round()
+
+    assert m.score_of("علی") == GOLDEN_POINTS + SPEED_BONUS
+    assert m.score_of("رضا") == GOLDEN_POINTS
+
+
+def test_golden_does_not_reward_a_wrong_answer():
+    m = make_match("golden")
+    m.start_round()
+    m.submit("علی", "C", 3.0)
+    m.submit("رضا", "D", 4.0)
+    m.resolve_round()
+
+    assert m.score_of("علی") == 0
+    assert m.score_of("رضا") == 0
+
+
+def test_golden_late_answer_gets_nothing():
+    m = make_match("golden")
+    m.start_round()
+    m.submit("علی", "A", TIME_LIMIT + 1)
+    m.submit("رضا", "B", 5.0)
+    m.resolve_round()
+
+    assert m.score_of("علی") == 0
+
+
+def test_power_up_name_is_not_case_sensitive():
+    q = Question("۲+۲؟", ["4", "5", "6", "7"], "A", " Golden ")
+    assert q.power_up == "golden"
+    assert q.is_golden()
+
+
+def test_an_unknown_power_up_is_refused():
+    with pytest.raises(ValueError):
+        Question("۲+۲؟", ["4", "5", "6", "7"], "A", "triple")
+
+
+# ---------- کنترل خطا ----------
+
+def test_a_question_needs_some_text():
+    with pytest.raises(ValueError):
+        Question("   ", ["4", "5", "6", "7"], "A")
+
+
+def test_options_must_be_text():
+    with pytest.raises(ValueError):
+        Question("۲+۲؟", [4, 5, 6, 7], "A")
+
+
+def test_options_must_be_a_list_not_a_string():
+    with pytest.raises(ValueError):
+        Question("۲+۲؟", "ABCD", "A")
+
+
+def test_cannot_submit_before_a_round_starts():
+    m = make_match()
+    with pytest.raises(ValueError):
+        m.submit("علی", "A", 5.0)
+
+
+def test_elapsed_time_cannot_be_negative_or_text():
+    m = make_match()
+    m.start_round()
+    with pytest.raises(ValueError):
+        m.submit("علی", "A", -1)
+    with pytest.raises(ValueError):
+        m.submit("علی", "A", "سریع")
+
+
+def test_a_round_cannot_be_scored_twice():
+    m = make_match()
+    m.start_round()
+    m.submit("علی", "A", 5.0)
+    m.resolve_round()
+
+    with pytest.raises(ValueError):
+        m.resolve_round()
+    assert m.score_of("علی") == POINTS + SPEED_BONUS      # دوباره جمع نشده

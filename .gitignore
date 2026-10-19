@@ -1,5 +1,7 @@
 .venv/
+.myenv/
 __pycache__/
 .pytest_cache/
 leaderboard.json
+leaderboard.json.*
 *.log
